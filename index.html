@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Lorenzo Amodeo" />
+  <meta name="copyright" content="© 2026 Lorenzo Amodeo — Licenza Creative Commons CC BY-NC 4.0" />
+  <title>freeDmed — Open 3D Medical Atlas</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Three.js & OrbitControls (r128) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.7);
+    }
+    @keyframes pulseBorder {
+      0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.6); }
+      70% { box-shadow: 0 0 0 12px rgba(14, 165, 233, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    }
+    .atlas-highlight {
+      animation: pulseBorder 1.8s ease-out 2;
+      border-color: #0ea5e9 !important;
+      background-color: #f0f9ff !important;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden selection:bg-sky-500 selection:text-white">
+
+  <!-- MOBILE TOP HEADER -->
+  <header class="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-30 shrink-0">
+    <button onclick="navigateTo('home')" class="flex items-center gap-2.5 text-left focus:outline-none">
+      <svg class="w-8 h-8 shrink-0" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="10" fill="#0F172A"/>
+        <path d="M20 7L31 13.5V26.5L20 33L9 26.5V13.5L20 7Z" stroke="#38BDF8" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M20 7V20M20 20L31 13.5M20 20L9 13.5" stroke="#0EA5E9" stroke-width="1.5" stroke-opacity="0.7"/>
+        <circle cx="20" cy="20" r="3.5" fill="#38BDF8"/>
+        <circle cx="20" cy="7" r="2" fill="#F8FAFC"/>
+        <circle cx="31" cy="13.5" r="2" fill="#38BDF8"/>
+        <circle cx="9" cy="13.5" r="2" fill="#38BDF8"/>
+      </svg>
+      <div class="relative inline-flex items-baseline">
+        <span class="relative inline-block font-extrabold text-xl tracking-tight text-slate-900">
+          <span aria-hidden="true" class="pointer-events-none select-none absolute -top-2 -left-1 text-3xl font-black bg-gradient-to-tr from-sky-500 to-amber-500 bg-clip-text text-transparent leading-none" style="opacity: 0.56;">3</span>
+          <span class="relative z-10">free</span>
+        </span><span class="relative z-10 font-extrabold text-xl tracking-tight text-sky-500">D</span><span class="relative z-10 font-extrabold text-xl tracking-tight text-slate-900">med</span>
+      </div>
+    </button>
+    <button id="mobile-menu-btn" onclick="toggleSidebar()" class="p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none" aria-label="Apri menu">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- SIDEBAR BACKDROP -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 hidden"></div>
+
+  <!-- LEFT NAVIGATION SIDEBAR -->
+  <aside id="left-sidebar" class="fixed md:static inset-y-0 left-0 w-72 bg-white border-r border-slate-200 flex flex-col z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out shrink-0 h-full">
+    <!-- Brand Logo Header -->
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between gap-2">
+      <button onclick="navigateTo('home')" title="Torna alla Home" class="flex items-center gap-3 text-left group focus:outline-none">
+        <div class="relative flex items-center justify-center w-11 h-11 rounded-xl bg-slate-900 shadow-sm group-hover:shadow-md transition-all shrink-0">
+          <svg class="w-8 h-8" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 6L32 13V27L20 34L8 27V13L20 6Z" stroke="#38BDF8" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M20 6V20M20 20L32 13M20 20L8 13M20 20V34" stroke="#0EA5E9" stroke-width="1.4" stroke-dasharray="2 2"/>
+            <circle cx="20" cy="20" r="3.8" fill="#38BDF8"/>
+            <circle cx="20" cy="6" r="2.2" fill="#FFFFFF"/>
+            <circle cx="32" cy="13" r="2.2" fill="#38BDF8"/>
+            <circle cx="8" cy="13" r="2.2" fill="#38BDF8"/>
+            <circle cx="20" cy="34" r="2.2" fill="#38BDF8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-baseline">
+            <span class="relative inline-block text-2xl font-extrabold tracking-tight text-slate-900">
+              <span aria-hidden="true" class="pointer-events-none select-none absolute -top-2.5 -left-1 text-4xl font-black bg-gradient-to-tr from-sky-500 to-amber-500 bg-clip-text text-transparent leading-none" style="opacity: 0.56;">3</span>
+              <span class="relative z-10">free</span>
+            </span><span class="relative z-10 text-2xl font-extrabold tracking-tight text-sky-500">D</span><span class="relative z-10 text-2xl font-extrabold tracking-tight text-slate-900">med</span>
+          </div>
+          <p class="text-xs text-slate-500 font-medium">Open 3D Medical Atlas</p>
+        </div>
+      </button>
+      <button onclick="toggleSidebar()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="Chiudi menu">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Navigation Links -->
+    <nav class="flex-1 overflow-y-auto p-3.5 space-y-1.5">
+      <!-- Home -->
+      <button id="nav-home" onclick="navigateTo('home')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        <span>Home</span>
+      </button>
+
+      <!-- L'idea dietro il progetto -->
+      <button id="nav-manifesto" onclick="navigateTo('manifesto')" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        </svg>
+        <span>L'idea dietro il progetto</span>
+      </button>
+
+      <!-- Divider Label -->
+      <div class="pt-3 pb-1 px-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Sistemi Catecolaminergici</span>
+      </div>
+
+      <!-- Expandable Group: Sistemi Dopaminergici -->
+      <div class="space-y-1">
+        <button id="dopamine-accordion-btn" onclick="toggleDopamineMenu()" class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-800 bg-sky-50/70 hover:bg-sky-100/70 border border-sky-100 transition-colors">
+          <span class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)]"></span>
+            <span>Sistemi Dopaminergici</span>
+          </span>
+          <svg id="dopamine-chevron" class="w-4 h-4 text-slate-500 transform rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- Pathway Sub-items populated dynamically -->
+        <div id="dopamine-pathway-list" class="pl-3 pr-1 py-1 space-y-1 border-l-2 border-sky-100 ml-4"></div>
+      </div>
+
+      <!-- Future Modular Expandable Placeholder -->
+      <div class="pt-1">
+        <div class="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 bg-slate-50/80 border border-slate-100 cursor-not-allowed select-none" title="Modulo predisposto per espansione futura">
+          <span class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+            <span>Sistemi Noradrenergici</span>
+          </span>
+          <span class="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-500">In arrivo</span>
+        </div>
+      </div>
+
+      <!-- Divider Label -->
+      <div class="pt-3 pb-1 px-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Consultazione Rapida</span>
+      </div>
+
+      <!-- Atlante Anatomo-Funzionale -->
+      <button id="nav-atlas" onclick="navigateTo('atlas')" class="nav-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+        <span class="flex items-center gap-3">
+          <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          <span>Atlante</span>
+        </span>
+        <span id="atlas-count-badge" class="text-xs font-mono-code px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">15</span>
+      </button>
+    </nav>
+
+    <!-- Author & Open Source License Footer -->
+    <div class="p-4 border-t border-slate-100 bg-slate-50/70 space-y-2.5">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <p class="text-[11px] font-medium text-slate-400 leading-none">Ideato e curato da</p>
+          <p class="text-xs font-bold text-slate-800 mt-1">Lorenzo Amodeo</p>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <a href="https://github.com/lollop77" target="_blank" rel="noopener noreferrer" title="GitHub — lollop77" class="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+          <a href="https://www.instagram.com/lorenzoamodeo" target="_blank" rel="noopener noreferrer" title="Instagram — @lorenzoamodeo" class="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-pink-600 hover:border-pink-200 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill-rule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clip-rule="evenodd"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+      <div class="pt-1.5 border-t border-slate-200/70 flex items-center justify-between text-[10px] text-slate-400">
+        <span>© 2026 Lorenzo Amodeo</span>
+        <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.it" target="_blank" rel="noopener noreferrer" class="font-mono-code font-semibold text-slate-500 hover:text-sky-600 transition-colors" title="Attribuzione - Non commerciale 4.0 Internazionale">CC BY-NC 4.0</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT WORKSPACE -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+    <!-- Persistent Floating Menu Toggle (visible on desktop when left sidebar is collapsed in Home, Manifesto or Atlas) -->
+    <button id="floating-menu-btn" onclick="toggleSidebar()" title="Apri il menu laterale" class="hidden fixed top-4 left-4 z-30 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-slate-50 backdrop-blur-md border border-slate-200 text-slate-800 text-xs font-semibold shadow-md transition-all">
+      <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <span>Menu</span>
+    </button>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1: CLEAN HOME LANDING PAGE                                       -->
+    <!-- ===================================================================== -->
+    <section id="view-home" class="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12">
+      <div class="max-w-5xl mx-auto space-y-10">
+
+        <!-- Hero Card: Enlarged Logo with "3" Watermark + Concise Tagline + Rotating SNC Preview -->
+        <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+          
+          <!-- Left Column: Brand & Quick Actions -->
+          <div class="lg:col-span-7 p-8 md:p-11 flex flex-col justify-between space-y-8">
+            <div class="space-y-5">
+              <!-- Enlarged Brand Identity with "3" behind "free" -->
+              <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900 shadow-md shrink-0">
+                  <svg class="w-11 h-11" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L32 13V27L20 34L8 27V13L20 6Z" stroke="#38BDF8" stroke-width="2.2" stroke-linejoin="round"/>
+                    <path d="M20 6V20M20 20L32 13M20 20L8 13M20 20V34" stroke="#0EA5E9" stroke-width="1.4" stroke-dasharray="2 2"/>
+                    <circle cx="20" cy="20" r="3.8" fill="#38BDF8"/>
+                    <circle cx="20" cy="6" r="2.2" fill="#FFFFFF"/>
+                    <circle cx="32" cy="13" r="2.2" fill="#38BDF8"/>
+                    <circle cx="8" cy="13" r="2.2" fill="#38BDF8"/>
+                  </svg>
+                </div>
+                <div class="flex items-baseline">
+                  <span class="relative inline-block text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">
+                    <span aria-hidden="true" class="pointer-events-none select-none absolute -top-5 -left-2.5 text-7xl md:text-8xl font-black bg-gradient-to-tr from-sky-500 to-amber-500 bg-clip-text text-transparent leading-none" style="opacity: 0.54;">3</span>
+                    <span class="relative z-10">free</span>
+                  </span><span class="relative z-10 text-5xl md:text-6xl font-extrabold tracking-tight text-sky-500">D</span><span class="relative z-10 text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900">med</span>
+                </div>
+              </div>
+
+              <p class="text-lg md:text-xl font-medium text-slate-600 leading-relaxed max-w-xl">
+                Atlante 3D interattivo e open-source per lo studio visivo della medicina.
+              </p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-3 pt-1">
+              <button onclick="selectPathway('nigrostriatal')" class="px-5 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm shadow-sm hover:shadow transition-all flex items-center gap-2">
+                <span>Esplora i Sistemi Dopaminergici</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+              </button>
+              <button onclick="navigateTo('atlas')" class="px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-semibold text-sm transition-all flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                <span>Consulta l'Atlante</span>
+              </button>
+              <button onclick="navigateTo('manifesto')" class="px-4 py-3 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 text-amber-900 border border-amber-200/80 font-semibold text-sm transition-all flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <span>L'idea dietro il progetto</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right Column: Rotating 3D Holographic Preview Widget -->
+          <div class="lg:col-span-5 bg-slate-900 relative min-h-[300px] lg:min-h-full flex flex-col items-center justify-center overflow-hidden border-t lg:border-t-0 lg:border-l border-slate-800">
+            <div id="home-preview-container" class="w-full h-full min-h-[300px]"></div>
+            <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-950/75 backdrop-blur-xs border border-slate-800 text-[11px] text-slate-300 pointer-events-none">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                Modello 3D SNC • Anteprima
+              </span>
+              <span class="font-mono-code text-slate-400">360° Mesh</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Step Study Workflow Guide (Generalizzata per tutta la medicina) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5">
+            <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 font-bold text-sm flex items-center justify-center border border-sky-100">1</div>
+            <h3 class="font-bold text-slate-900 text-base">Scegli l'Argomento</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Scegli l'argomento che vuoi studiare dal menu a sinistra ed esploralo in tre dimensioni.
+            </p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 font-bold text-sm flex items-center justify-center border border-amber-100">2</div>
+            <h3 class="font-bold text-slate-900 text-base">Osserva Funzione ed Esempi</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Nella scheda laterale trovi il ruolo fisiologico dettagliato affiancato da <strong>esempi pratici</strong> per fissare subito il concetto.
+            </p>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5">
+            <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 font-bold text-sm flex items-center justify-center border border-indigo-100">3</div>
+            <h3 class="font-bold text-slate-900 text-base">Consulta l'Atlante</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Clicca sull'<strong>Atlante</strong> per un ripasso rapido delle strutture.
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick Access Grid to the 7 Dopaminergic Pathways -->
+        <div class="pb-6">
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+            <button type="button" onclick="toggleHomeQuickAccess()" class="w-full px-6 py-4 flex items-center justify-between gap-3 text-left hover:bg-slate-50/80 transition-colors focus:outline-none">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)] shrink-0"></span>
+                <div>
+                  <h2 class="text-base md:text-lg font-bold text-slate-900">Accesso Rapido • Sistemi Dopaminergici</h2>
+                  <p class="text-xs text-slate-500">Clicca per aprire o chiudere l'elenco dei 7 circuiti disponibili</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2.5 shrink-0">
+                <span class="text-xs font-mono-code font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 border border-sky-100">7 circuiti</span>
+                <svg id="home-quick-chevron" class="w-5 h-5 text-slate-500 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
+            </button>
+            <div id="home-quick-cards-wrapper" class="hidden border-t border-slate-100 p-5 bg-slate-50/50">
+              <div id="home-quick-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1B: "L'IDEA DIETRO IL PROGETTO" (Editorial Vision & Manifesto)    -->
+    <!-- ===================================================================== -->
+    <section id="view-manifesto" class="hidden flex-1 overflow-y-auto p-6 md:p-10 lg:p-12">
+      <div class="max-w-4xl mx-auto space-y-8 pb-12">
+
+        <!-- Editorial Header -->
+        <div class="bg-white rounded-3xl border border-slate-200 p-8 md:p-10 shadow-xs space-y-5">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-wider">
+            <span>Manifesto & Visione</span>
+          </div>
+
+          <div>
+            <button onclick="navigateTo('home')" title="Torna alla Home" class="inline-flex items-baseline pt-1 text-left group focus:outline-none cursor-pointer">
+              <span class="relative inline-block text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 group-hover:text-sky-900 transition-colors">
+                <span aria-hidden="true" class="pointer-events-none select-none absolute -top-3 -left-1.5 text-5xl md:text-6xl font-black bg-gradient-to-tr from-sky-500 to-amber-500 bg-clip-text text-transparent leading-none" style="opacity: 0.56;">3</span>
+                <span class="relative z-10">free</span>
+              </span><span class="relative z-10 text-3xl md:text-4xl font-extrabold tracking-tight text-sky-500">D</span><span class="relative z-10 text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 group-hover:text-sky-900 transition-colors">med</span>
+            </button>
+          </div>
+
+          <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight leading-snug">
+            Dare profondità spaziale allo studio della medicina, rendendo la conoscenza libera e condivisa.
+          </h1>
+          <p class="text-base text-slate-600 leading-relaxed">
+            Studiare medicina significa spesso dover ricostruire mentalmente strutture tridimensionali, rapporti anatomici e cascate funzionali partendo da pagine bidimensionali. <strong>freeDmed</strong> nasce per colmare questa distanza tra lo schema sul libro e la comprensione spaziale.
+          </p>
+        </div>
+
+        <!-- Hero Slogan Banner + Architettura Aperta -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Left: Large freeD with 3 watermark + Slogan -->
+          <div class="md:col-span-7 bg-slate-900 rounded-2xl border border-slate-800 p-7 md:p-8 shadow-xs flex flex-col justify-center space-y-5 relative overflow-hidden">
+            <div class="flex items-center gap-4">
+              <button onclick="navigateTo('home')" title="Torna alla Home" class="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 shrink-0 transition-colors cursor-pointer">
+                <svg class="w-9 h-9" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 6L32 13V27L20 34L8 27V13L20 6Z" stroke="#38BDF8" stroke-width="2.2" stroke-linejoin="round"/>
+                  <path d="M20 6V20M20 20L32 13M20 20L8 13M20 20V34" stroke="#0EA5E9" stroke-width="1.4" stroke-dasharray="2 2"/>
+                  <circle cx="20" cy="20" r="3.8" fill="#38BDF8"/>
+                  <circle cx="20" cy="6" r="2.2" fill="#FFFFFF"/>
+                  <circle cx="32" cy="13" r="2.2" fill="#38BDF8"/>
+                  <circle cx="8" cy="13" r="2.2" fill="#38BDF8"/>
+                </svg>
+              </button>
+              <button onclick="navigateTo('home')" title="Torna alla Home" class="flex items-baseline text-left focus:outline-none cursor-pointer group">
+                <span class="relative inline-block text-5xl md:text-6xl font-extrabold tracking-tight text-white group-hover:text-sky-100 transition-colors">
+                  <span aria-hidden="true" class="pointer-events-none select-none absolute -top-5 -left-2.5 text-7xl md:text-8xl font-black bg-gradient-to-tr from-sky-400 to-amber-400 bg-clip-text text-transparent leading-none" style="opacity: 0.54;">3</span>
+                  <span class="relative z-10">free</span>
+                </span><span class="relative z-10 text-5xl md:text-6xl font-extrabold tracking-tight text-sky-400">D</span>
+              </button>
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-xl md:text-2xl font-extrabold text-white tracking-tight leading-snug">
+                La medicina in 3D aperta a tutti.
+              </p>
+              <p class="text-sm text-slate-300 leading-relaxed">
+                Dalla neuroanatomia funzionale alla cardiologia, dai plessi nervosi alle vie metaboliche: un unico spazio visivo per comprendere rapporti spaziali, funzioni ed esempi clinici senza barriere.
+              </p>
+            </div>
+          </div>
+
+          <!-- Right: Architettura Aperta -->
+          <div class="md:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 md:p-7 shadow-2xs space-y-3 flex flex-col justify-center">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+              </svg>
+            </div>
+            <h2 class="font-bold text-slate-900 text-lg">Architettura Aperta</h2>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Il motore grafico è separato dai contenuti didattici: ogni circuito, didascalia, esempio pratico o voce enciclopedica dell'Atlante vive in moduli strutturati che qualsiasi studente o docente può arricchire, correggere o espandere nel tempo.
+            </p>
+          </div>
+        </div>
+
+        <!-- Author & License Attribution Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 md:p-7 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-sky-600">
+              <span>Ideazione, Curatela & Licenza</span>
+            </div>
+            <h3 class="text-base md:text-lg font-extrabold text-slate-900">
+              Lorenzo Amodeo
+            </h3>
+            <p class="text-xs text-slate-500 leading-relaxed">
+              © 2026 Lorenzo Amodeo • Distribuito con licenza aperta <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.it" target="_blank" rel="noopener noreferrer" class="font-semibold text-slate-700 underline decoration-sky-400 hover:text-sky-600">Creative Commons CC BY-NC 4.0</a> (Attribuzione - Non commerciale).
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+            <a href="https://github.com/lollop77" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-colors">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/>
+              </svg>
+              <span>GitHub</span>
+            </a>
+            <a href="https://www.instagram.com/lorenzoamodeo" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-pink-50 text-slate-700 hover:text-pink-700 border border-slate-200 hover:border-pink-200 text-xs font-semibold transition-colors">
+              <svg class="w-4 h-4 text-pink-600" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clip-rule="evenodd"/>
+              </svg>
+              <span>Instagram</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 2: INTERACTIVE 3D PATHWAY VIEWPORT + RIGHT EXPLANATION PANEL     -->
+    <!-- ===================================================================== -->
+    <section id="view-3d" class="hidden flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
+      
+      <!-- 3D Canvas Area -->
+      <div class="relative flex-1 bg-slate-950 h-[52vh] lg:h-full overflow-hidden select-none">
+        <div id="threejs-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+        <!-- Top-Left Menu Toggle & Active Pathway Pill Overlay -->
+        <div class="absolute top-4 left-4 right-4 sm:right-auto flex flex-col gap-1.5 max-w-md z-10">
+          <div class="flex items-center gap-2">
+            <button onclick="toggleSidebar()" class="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-slate-700/80 text-white text-xs font-semibold shadow-lg transition-colors" title="Apri o chiudi il menu delle vie">
+              <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+              <span>Menu</span>
+            </button>
+            <div class="pointer-events-none inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/85 backdrop-blur-md border border-slate-700/80 text-white shadow-lg w-fit">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span>
+              <span id="viewport-pathway-title" class="text-sm font-bold tracking-tight">Sistema Nigro-striatale</span>
+            </div>
+          </div>
+          <p class="pointer-events-none text-[11px] text-slate-300 bg-slate-900/70 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-slate-800/80 w-fit">
+            Trascina per ruotare • Scorri per zoom • Clicca i nuclei illuminati per l'Atlante
+          </p>
+        </div>
+
+        <!-- Hover Tooltip for Active 3D Nuclei -->
+        <div id="node-tooltip" class="hidden fixed z-50 pointer-events-none px-3 py-2 rounded-xl bg-slate-900/95 text-white border border-sky-400/60 shadow-xl backdrop-blur-md transition-opacity duration-75">
+          <div id="tooltip-title" class="text-xs font-bold text-sky-300">Nucleo</div>
+          <div class="text-[10px] text-slate-300 mt-0.5">Clicca per aprire nell'Atlante →</div>
+        </div>
+
+        <!-- Bottom-Left Camera & Visual Controls Bar -->
+        <div class="absolute bottom-4 left-4 right-4 sm:right-auto flex flex-wrap items-center gap-2.5 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 px-3.5 py-2 rounded-2xl text-xs text-slate-200 shadow-lg">
+          <button onclick="resetCameraView()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium transition-colors flex items-center gap-1.5" title="Ripristina vista camera">
+            <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>Centra</span>
+          </button>
+
+          <div class="h-4 w-px bg-slate-700"></div>
+
+          <!-- Brain Shell Opacity Slider -->
+          <label class="flex items-center gap-2 cursor-pointer">
+            <span class="text-slate-400 font-medium">Trasparenza SNC</span>
+            <input id="opacity-slider" type="range" min="0.04" max="0.42" step="0.02" value="0.16" oninput="updateBrainOpacity(this.value)" class="w-20 accent-sky-400 cursor-pointer">
+          </label>
+
+          <div class="h-4 w-px bg-slate-700 hidden sm:block"></div>
+
+          <!-- Toggle Labels Checkbox -->
+          <label class="flex items-center gap-1.5 cursor-pointer select-none">
+            <input id="toggle-labels" type="checkbox" checked onchange="toggle3DLabels(this.checked)" class="rounded accent-sky-400 cursor-pointer">
+            <span class="text-slate-300 font-medium">Etichette</span>
+          </label>
+        </div>
+
+        <!-- Floating 2D Projected Labels Container -->
+        <div id="labels-overlay" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+      </div>
+
+      <!-- Right Lateral Explanation Panel -->
+      <aside class="w-full lg:w-[410px] xl:w-[440px] bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col h-[48vh] lg:h-full shrink-0 overflow-hidden">
+        <div class="flex-1 overflow-y-auto p-5 md:p-6 space-y-5">
+          
+          <!-- Header & Neurotransmitter Tag -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                Sistema Dopaminergico
+              </span>
+              <span id="panel-group-badge" class="text-xs font-mono-code font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">A9</span>
+            </div>
+            <h2 id="panel-title" class="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
+              Sistema Nigro-striatale
+            </h2>
+          </div>
+
+          <!-- Connected Structures -->
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Strutture Connesse</span>
+              <span class="text-[11px] text-sky-600 font-medium">Clicca per l'Atlante</span>
+            </div>
+
+            <div class="space-y-1.5">
+              <span class="text-[11px] font-semibold text-slate-400 uppercase">Origine</span>
+              <div id="panel-origins" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <div class="flex items-center gap-2 text-slate-400 pl-1">
+              <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+              </svg>
+              <span class="text-[11px] font-medium text-slate-500">Proiezione assonale</span>
+            </div>
+
+            <div class="space-y-1.5">
+              <span class="text-[11px] font-semibold text-slate-400 uppercase">Bersagli</span>
+              <div id="panel-targets" class="flex flex-wrap gap-1.5"></div>
+            </div>
+          </div>
+
+          <!-- Physiological Function -->
+          <div class="space-y-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span>Funzione della Via</span>
+            </h3>
+            <div id="panel-function" class="text-sm text-slate-700 leading-relaxed space-y-2"></div>
+          </div>
+
+          <!-- Practical Everyday Example(s) -->
+          <div class="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-4 space-y-2.5">
+            <div class="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
+              <svg class="w-4 h-4 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
+              </svg>
+              <span>Esempio Pratico</span>
+            </div>
+            <div id="panel-examples" class="text-sm text-slate-800 leading-relaxed space-y-2.5"></div>
+          </div>
+
+        </div>
+
+        <!-- Bottom Pathway Switcher Bar -->
+        <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between text-xs">
+          <button onclick="stepPathway(-1)" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-colors">
+            ← Precedente
+          </button>
+          <span id="pathway-counter" class="font-mono-code text-slate-500">1 / 7</span>
+          <button onclick="stepPathway(1)" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition-colors">
+            Successiva →
+          </button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 3: DEDICATED "ATLANTE" PAGE (Encyclopedic Reference)             -->
+    <!-- ===================================================================== -->
+    <section id="view-atlas" class="hidden flex-1 overflow-y-auto p-6 md:p-10">
+      <div class="max-w-5xl mx-auto space-y-6 pb-10">
+
+        <!-- Contextual Back Banner (Shown when user navigated from a 3D pathway) -->
+        <div id="atlas-return-banner" class="hidden bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 text-sm text-sky-900">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+            <span>Stavi esplorando: <strong id="atlas-return-pathway-name">Sistema Nigro-striatale</strong></span>
+          </div>
+          <button onclick="returnTo3DPathway()" class="px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold shadow-xs transition-colors">
+            ← Torna al circuito 3D
+          </button>
+        </div>
+
+        <!-- Atlas Header & Search Bar -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
+          <div class="space-y-1">
+            <button onclick="navigateTo('home')" title="Torna alla Home" class="inline-flex items-baseline mb-1 text-left group focus:outline-none cursor-pointer">
+              <span class="relative inline-block text-2xl font-extrabold tracking-tight text-slate-900 group-hover:text-sky-900 transition-colors">
+                <span aria-hidden="true" class="pointer-events-none select-none absolute -top-2 -left-1 text-4xl font-black bg-gradient-to-tr from-sky-500 to-amber-500 bg-clip-text text-transparent leading-none" style="opacity: 0.54;">3</span>
+                <span class="relative z-10">free</span>
+              </span><span class="relative z-10 text-2xl font-extrabold tracking-tight text-sky-500">D</span><span class="relative z-10 text-2xl font-extrabold tracking-tight text-slate-900 group-hover:text-sky-900 transition-colors">med</span>
+            </button>
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-600">
+              <span>Enciclopedia Medica • Consultazione Rapida</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Atlante Anatomo-Funzionale
+            </h1>
+            <p class="text-sm text-slate-600">
+              Schede essenziali in ordine alfabetico per ripassare rapidamente sede anatomica e funzione di ogni struttura.
+            </p>
+          </div>
+
+          <!-- Filter / Search Input -->
+          <div class="relative w-full md:w-72">
+            <input id="atlas-search" type="text" oninput="filterAtlas(this.value)" placeholder="Cerca struttura (es. Ippocampo, VTA...)" class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-300 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Anatomical Region Filter Pills -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="setAtlasRegion('all')" id="reg-all" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white transition-colors">
+            Tutte le regioni (15)
+          </button>
+          <button onclick="setAtlasRegion('Telencefalo')" id="reg-Telencefalo" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+            Telencefalo
+          </button>
+          <button onclick="setAtlasRegion('Diencefalo')" id="reg-Diencefalo" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+            Diencefalo
+          </button>
+          <button onclick="setAtlasRegion('Mesencefalo')" id="reg-Mesencefalo" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+            Mesencefalo
+          </button>
+          <button onclick="setAtlasRegion('Midollo Spinale')" id="reg-Midollo Spinale" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+            Midollo Spinale
+          </button>
+          <button onclick="setAtlasRegion('Ghiandole Endocrine')" id="reg-Ghiandole Endocrine" class="atlas-reg-btn px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
+            Ghiandole Endocrine
+          </button>
+        </div>
+
+        <!-- Atlas Cards Grid -->
+        <div id="atlas-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================= -->
+  <!-- MODULAR DATA & 3D ENGINE SCRIPT                                         -->
+  <!-- ======================================================================= -->
+  <script>
+    /**
+     * 1. MODULAR DATABASE: ATLAS STRUCTURES (`ATLAS_DATA`)
+     */
+    const ATLAS_DATA = {
+      substantia_nigra: {
+        id: 'substantia_nigra',
+        name: 'Substantia Nigra (Pars Compacta A9 & Pars Reticulata)',
+        shortName: 'Substantia Nigra (A9)',
+        region: 'Mesencefalo',
+        shapeType: 'substantia_nigra',
+        bilateral: true,
+        pos: [0.22, -0.44, -0.14],
+        labelOffsetY: 0.12,
+        where: 'Nel mesencefalo (ventralmente al tegmento); deve il nome al pigmento scuro (neuromelanina) contenuto nei suoi neuroni dopaminergici.',
+        what: 'È la centralina che "oliando" i gangli della base permette di avviare i movimenti volontari e renderli fluidi. I dendriti della pars compacta rilasciano dopamina anche nella pars reticulata modulando i terminali GABAergici.'
+      },
+      vta: {
+        id: 'vta',
+        name: 'Area Tegmentale Ventrale – VTA (A10)',
+        shortName: 'VTA (A10)',
+        region: 'Mesencefalo',
+        shapeType: 'compact_nucleus',
+        radius: 0.068,
+        bilateral: true,
+        pos: [0.09, -0.43, -0.12],
+        labelOffsetY: 0.11,
+        where: 'Nel mesencefalo, medialmente rispetto alla Substantia Nigra.',
+        what: 'È il motore neurochimico della motivazione, della gratificazione, dell’apprendimento legato alla ricompensa e dell’attenzione finalizzata a uno scopo.'
+      },
+      hypothalamus_a11: {
+        id: 'hypothalamus_a11',
+        name: 'Ipotalamo Dorso-Posteriore (Gruppo A11)',
+        shortName: 'Ipotalamo Posteriore (A11)',
+        region: 'Diencefalo',
+        shapeType: 'compact_nucleus',
+        radius: 0.062,
+        bilateral: true,
+        pos: [0.08, -0.20, 0.03],
+        labelOffsetY: 0.11,
+        where: 'Nella porzione posteriore e dorsale dell’ipotalamo, al confine con il mesencefalo.',
+        what: 'Invia proiezioni dopaminergiche discendenti fino al midollo spinale per filtrare gli stimoli sensitivi e regolare l’eccitabilità dei motoneuroni e dei circuiti autonomici.'
+      },
+      arcuate_a12: {
+        id: 'arcuate_a12',
+        name: 'Nucleo Arcuato e Periventricolare (A12)',
+        shortName: 'Nucleo Arcuato (A12)',
+        region: 'Diencefalo',
+        shapeType: 'compact_nucleus',
+        radius: 0.062,
+        bilateral: true,
+        pos: [0.06, -0.32, 0.28],
+        labelOffsetY: 0.11,
+        where: 'Alla base dell’ipotalamo, attorno al terzo ventricolo e subito sopra il peduncolo ipofisario.',
+        what: 'Controlla la secrezione endocrina dell’ipofisi, agendo soprattutto come freno tonico costante sul rilascio di prolattina.'
+      },
+      zona_incerta_a13: {
+        id: 'zona_incerta_a13',
+        name: 'Zona Incerta (Gruppo A13)',
+        shortName: 'Zona Incerta (A13)',
+        region: 'Diencefalo',
+        shapeType: 'zona_incerta',
+        bilateral: true,
+        pos: [0.22, -0.15, 0.04],
+        labelOffsetY: 0.10,
+        where: 'Nel subtalamo (sotto il talamo e sopra il peduncolo cerebrale).',
+        what: 'Stazione integrativa che collega segnali viscerali, emotivi e motori, regolando nell’ipotalamo il rilascio dell’ormone GnRH (gonadotropine).'
+      },
+      dorsal_striatum: {
+        id: 'dorsal_striatum',
+        name: 'Striato Dorsale (Nucleo Caudato e Putamen)',
+        shortName: 'Striato Dorsale',
+        region: 'Telencefalo',
+        shapeType: 'dorsal_striatum',
+        bilateral: true,
+        pos: [0.46, 0.22, 0.34],
+        labelOffsetY: 0.22,
+        where: 'In profondità negli emisferi cerebrali (componente principale dei gangli della base).',
+        what: 'Seleziona i programmi motori corretti e inibisce quelli indesiderati; si organizza in matrice (innervazione diffusa) e striosomi (isole ad alta densità dopaminergica).'
+      },
+      nucleus_accumbens: {
+        id: 'nucleus_accumbens',
+        name: 'Nucleus Accumbens (Striato Ventrale)',
+        shortName: 'Nucleus Accumbens',
+        region: 'Telencefalo',
+        shapeType: 'accumbens',
+        bilateral: true,
+        pos: [0.24, -0.06, 0.56],
+        labelOffsetY: 0.12,
+        where: 'Alla base del telencefalo, nel punto in cui si incontrano la testa del nucleo caudato e il putamen.',
+        what: 'È il centro chiave del piacere, della salienza incentiva e del rinforzo comportamentale ("voglio ripetere questa esperienza").'
+      },
+      prefrontal_cortex: {
+        id: 'prefrontal_cortex',
+        name: 'Corteccia Prefrontale',
+        shortName: 'Corteccia Prefrontale',
+        region: 'Telencefalo',
+        shapeType: 'prefrontal_cortex',
+        bilateral: true,
+        pos: [0.34, 0.42, 1.38],
+        labelOffsetY: 0.22,
+        where: 'La porzione più anteriore del lobo frontale.',
+        what: 'È il "direttore d’orchestra" cognitivo: gestisce memoria di lavoro (working memory), pianificazione, concentrazione e controllo razionale sugli impulsi emotivi.'
+      },
+      amygdala: {
+        id: 'amygdala',
+        name: 'Amigdala',
+        shortName: 'Amigdala',
+        region: 'Telencefalo',
+        shapeType: 'amygdala',
+        bilateral: true,
+        pos: [0.48, -0.26, 0.26],
+        labelOffsetY: 0.12,
+        where: 'Nella profondità del lobo temporale mediale, davanti all’ippocampo.',
+        what: 'Assegna il valore emotivo agli stimoli (paura, allerta, salienza affettiva) e orchestra le risposte viscerali e comportamentali rapide.'
+      },
+      hippocampus: {
+        id: 'hippocampus',
+        name: 'Ippocampo',
+        shortName: 'Ippocampo',
+        region: 'Telencefalo',
+        shapeType: 'hippocampus',
+        bilateral: true,
+        pos: [0.46, -0.16, -0.06],
+        labelOffsetY: 0.16,
+        where: 'Nel lobo temporale mediale, lungo il pavimento del corno inferiore del ventricolo laterale.',
+        what: 'Consolida i ricordi a lungo termine (memoria dichiarativa) e costruisce le mappe spaziali e contestuali dell’ambiente.'
+      },
+      habenula: {
+        id: 'habenula',
+        name: 'Abenula',
+        shortName: 'Abenula',
+        region: 'Diencefalo',
+        shapeType: 'habenula',
+        bilateral: true,
+        pos: [0.09, 0.09, -0.26],
+        labelOffsetY: 0.10,
+        where: 'Nell’epitalamo (regione posteriore del diencefalo, accanto all’epifisi).',
+        what: 'Funge da centro dell’avversione e della delusione: frena i neuroni dopaminergici quando una ricompensa attesa manca o uno stimolo è spiacevole.'
+      },
+      pituitary: {
+        id: 'pituitary',
+        name: 'Ipofisi (Adenoipofisi, Parte Intermedia e Neuroipofisi)',
+        shortName: 'Ipofisi',
+        region: 'Ghiandole Endocrine',
+        shapeType: 'pituitary',
+        bilateral: false,
+        pos: [0.0, -0.58, 0.34],
+        labelOffsetY: 0.13,
+        where: 'Sotto l’ipotalamo (collegata tramite il peduncolo ipofisario), alloggiata nella sella turcica dello sfenoide.',
+        what: 'Ghiandola endocrina maestra: la dopamina inibisce prolattina (adenoipofisi), α-MSH e β-endorfina (parte intermedia) e modula ossitocina e vasopressina (neuroipofisi).'
+      },
+      limbic_accessory: {
+        id: 'limbic_accessory',
+        name: 'Tubercolo Olfattorio, Setto Laterale, BNST e Corteccia Entorinale',
+        shortName: 'Strutture Limbiche Accessorie',
+        region: 'Telencefalo',
+        shapeType: 'limbic_accessory',
+        bilateral: true,
+        pos: [0.24, -0.18, 0.48],
+        labelOffsetY: 0.12,
+        where: 'Tra la base del telencefalo (tubercolo olfattorio, setto laterale, nucleo del letto della stria terminale - BNST) e il lobo temporale mediale (corteccia entorinale).',
+        what: 'Fanno da ponte tra percezione olfattiva, ansia/risposta allo stress (BNST) e smistamento delle informazioni verso l’ippocampo (corteccia entorinale).'
+      },
+      pag: {
+        id: 'pag',
+        name: 'Sostanza Grigia Periacqueduttale (PAG)',
+        shortName: 'PAG (Mesencefalo)',
+        region: 'Mesencefalo',
+        shapeType: 'pag',
+        bilateral: false,
+        pos: [0.0, -0.38, -0.25],
+        labelOffsetY: 0.11,
+        where: 'Nel mesencefalo, attorno all’acquedotto cerebrale di Silvio.',
+        what: 'Coordina le risposte automatiche di difesa, la modulazione discendente del dolore (analgesia endogena) e l’integrazione viscerale.'
+      },
+      spinal_cord: {
+        id: 'spinal_cord',
+        name: 'Midollo Spinale',
+        shortName: 'Midollo Spinale',
+        region: 'Midollo Spinale',
+        shapeType: 'spinal_cord',
+        bilateral: false,
+        pos: [0.0, -1.48, -0.43],
+        labelOffsetY: 0.22,
+        where: 'Decorre all’interno del canale vertebrale, in continuità con il bulbo (midollo allungato).',
+        what: 'Conduce le afferenze sensitive verso l’encefalo ed esegue i comandi motori e autonomici; la dopamina ne regola la soglia sensitiva e l’eccitabilità motoria.'
+      }
+    };
+
+    /**
+     * 2. MODULAR DATABASE: DOPAMINERGIC PATHWAYS (`PATHWAYS_DATA`)
+     */
+    const PATHWAYS_DATA = [
+      {
+        id: 'nigrostriatal',
+        title: 'Sistema Nigro-striatale',
+        group: 'A9',
+        shortDesc: 'Controllo motorio extra-piramidale e fluido avvio del movimento.',
+        origins: ['substantia_nigra'],
+        targets: ['dorsal_striatum'],
+        localLoop: true,
+        functionText: [
+          'Proietta dai neuroni dopaminergici della pars compacta della Substantia Nigra (A9) allo striato dorsale (caudato e putamen), regolando i circuiti dei gangli della base.',
+          'Inoltre, i dendriti di A9 scendono nella pars reticulata rilasciando dopamina per via somato-dendritica sui terminali GABAergici striato-nigrali e pallido-nigrali, modulando il rilascio di GABA.'
+        ],
+        examples: [
+          'Quando decidi di afferrare una tazza o iniziare a camminare: la dopamina sblocca i programmi motori volontari rendendo il movimento fluido; se degenera (morbo di Parkinson), iniziare il passo diventa difficile.'
+        ]
+      },
+      {
+        id: 'mesolimbic',
+        title: 'Sistema Mesolimbico',
+        group: 'A10',
+        shortDesc: 'Piacere, salienza incentiva, ricompensa e rinforzo comportamentale.',
+        origins: ['vta', 'substantia_nigra'],
+        targets: ['nucleus_accumbens', 'limbic_accessory'],
+        functionText: [
+          'Origina dall’Area Tegmentale Ventrale (A10) e dalla porzione mediale della Substantia Nigra per raggiungere il Nucleus Accumbens, il tubercolo olfattorio e il nucleo interstiziale della stria terminale (BNST).',
+          'Media la gratificazione, la motivazione all’azione e il rinforzo degli stimoli gratificanti (meccanismo chiave anche nelle dipendenze).'
+        ],
+        examples: [
+          'Quando ricevi una bella notizia inaspettata o assaggi il tuo cibo preferito: il rilascio fasico di dopamina nel Nucleus Accumbens segnala la ricompensa e ti spinge a ripetere quel comportamento.'
+        ]
+      },
+      {
+        id: 'mesocortical',
+        title: 'Sistema Mesolimbico-corticale',
+        group: 'A10',
+        shortDesc: 'Funzioni cognitive esecutive, pianificazione e integrazione emotiva.',
+        origins: ['vta'],
+        targets: ['prefrontal_cortex', 'hippocampus', 'amygdala', 'limbic_accessory'],
+        functionText: [
+          'Proietta da A10 verso la corteccia prefrontale, la corteccia entorinale, l’ippocampo, l’amigdala e il nucleo del setto laterale.',
+          'Sostiene le funzioni esecutive superiori (working memory, pianificazione, attenzione) e integra il controllo razionale con la memoria emotiva.'
+        ],
+        examples: [
+          'Pianificazione esecutiva: quando cucini una ricetta complessa mentre qualcuno ti parla, la dopamina nella corteccia prefrontale stabilizza la memoria di lavoro per ricordare i passaggi e filtrare le distrazioni.',
+          'Controllo emotivo e decisioni: quando stai per rispondere impulsivamente in una discussione ma ti fermi, la componente corticale modula la reazione dell’amigdala permettendoti di valutare le conseguenze.'
+        ]
+      },
+      {
+        id: 'mesothalamic',
+        title: 'Sistema Mesotalamico',
+        group: 'A10',
+        shortDesc: 'Modulatore negativo della ricompensa ed elaborazione dell’avversione.',
+        origins: ['vta'],
+        targets: ['habenula'],
+        functionText: [
+          'Collega l’Area Tegmentale Ventrale (VTA) all’abenula nell’epitalamo.',
+          'Agisce come modulatore negativo della ricompensa, segnalando la mancata gratificazione o stimoli avversivi per aggiornare il comportamento.'
+        ],
+        examples: [
+          'Quando ti aspetti una ricompensa (come un voto alto o un premio) ma non la ottieni: l’abenula elabora la delusione e frena il circuito della ricompensa aiutandoti ad evitare errori già commessi.'
+        ]
+      },
+      {
+        id: 'tuberoinfundibular',
+        title: 'Sistema Tuberoinfundibolare e Tuberoipofisario',
+        group: 'A12',
+        shortDesc: 'Inibizione tonica della prolattina e modulazione endocrina ipofisaria.',
+        origins: ['arcuate_a12'],
+        targets: ['pituitary'],
+        functionText: [
+          'I corpi cellulari dopaminergici dei nuclei arcuato e periventricolare (A12) proiettano all’eminenza mediana/adenoipofisi (via tuberoinfundibolare) e alla parte intermedia e posteriore dell’ipofisi (via tuberoipofisaria).',
+          'Inibisce la secrezione di prolattina, α-MSH, β-endorfina e modula il rilascio di ossitocina e vasopressina.'
+        ],
+        examples: [
+          'Durante la normale vita quotidiana al di fuori dell’allattamento: la dopamina agisce come freno tonico costante sui recettori D2 ipofisari per mantenere bassa la prolattina.'
+        ]
+      },
+      {
+        id: 'hypothalamospinal',
+        title: 'Sistema Ipotalamo-spinale',
+        group: 'A11',
+        shortDesc: 'Modulazione discendente delle afferenze sensitive e dell’eccitabilità spinale.',
+        origins: ['hypothalamus_a11'],
+        targets: ['spinal_cord'],
+        functionText: [
+          'Origina dai neuroni dopaminergici del gruppo A11 nell’ipotalamo dorso-posteriore e discende lungo il midollo spinale.',
+          'Regola l’elaborazione delle attività sensoriali (tattili e nocicettive) nel corno dorsale e modula l’eccitabilità dei circuiti motori e autonomici spinali.'
+        ],
+        examples: [
+          'Quando sei a letto la sera e tieni le gambe ferme senza provare fastidio: i neuroni di A11 modulano l’eccitabilità dei neuroni spinali (una loro ipofunzione è implicata nella sindrome delle gambe senza riposo).'
+        ]
+      },
+      {
+        id: 'incertohypothalamic',
+        title: 'Via Incerto-ipotalamica',
+        group: 'A13',
+        shortDesc: 'Controllo neuroendocrino del GnRH e integrazione viscerale-emotiva.',
+        origins: ['zona_incerta_a13'],
+        targets: ['hypothalamus_a11', 'amygdala', 'pag'],
+        functionText: [
+          'Origina dai neuroni dopaminergici della Zona Incerta (A13) nel subtalamo e proietta verso i nuclei ipotalamici, l’amigdala e la sostanza grigia periacqueduttale (PAG).',
+          'Regola il rilascio pulsatile dell’ormone di rilascio delle gonadotropine (GnRH) integrando segnali viscerali ed emotivi.'
+        ],
+        examples: [
+          'Durante la regolazione neuroendocrina dell’asse riproduttivo e la risposta allo stress: A13 integra stimoli emotivi e viscerali per modulare la secrezione di GnRH.'
+        ]
+      }
+    ];
+
+    /**
+     * 3. APPLICATION STATE
+     */
+    let currentView = 'home';
+    let currentPathwayId = 'nigrostriatal';
+    let lastVisitedPathwayId = null;
+    let currentAtlasRegion = 'all';
+    let currentAtlasSearch = '';
+    let showLabels = true;
+
+    // Three.js Main Scene Globals
+    let mainScene, mainCamera, mainRenderer, mainControls;
+    let brainShellMaterials = [];
+    let structureMeshes = {};
+    let clickableMeshes = [];
+    let activeTractsGroup = null;
+    let animatedPulses = [];
+    let labelElements = {};
+    let raycaster, mouseNDC;
+    let hoveredStructureId = null;
+    let pointerDownPos = { x: 0, y: 0 };
+
+    // Three.js Home Preview Globals
+    let homeScene, homeCamera, homeRenderer, homeBrainGroup;
+
+    /**
+     * 4. INITIALIZATION
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      populateNavigationAndHome();
+      renderAtlasCards();
+      initHomePreview3D();
+      initMainInteractive3D();
+      animateLoops();
+    });
+
+    function populateNavigationAndHome() {
+      const navList = document.getElementById('dopamine-pathway-list');
+      const quickGrid = document.getElementById('home-quick-cards');
+      const countBadge = document.getElementById('atlas-count-badge');
+
+      if (countBadge) {
+        countBadge.textContent = Object.keys(ATLAS_DATA).length;
+      }
+
+      if (navList) {
+        navList.innerHTML = PATHWAYS_DATA.map(pw => `
+          <button id="nav-pw-${pw.id}" onclick="selectPathway('${pw.id}')" class="pw-nav-btn w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors flex items-center justify-between gap-2">
+            <span class="truncate">${pw.title.replace('Sistema ', '').replace('Via ', '')}</span>
+            <span class="font-mono-code text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 shrink-0">${pw.group}</span>
+          </button>
+        `).join('');
+      }
+
+      if (quickGrid) {
+        quickGrid.innerHTML = PATHWAYS_DATA.map(pw => `
+          <button onclick="selectPathway('${pw.id}')" class="group text-left bg-white hover:bg-sky-50/40 p-4 rounded-2xl border border-slate-200 hover:border-sky-300 shadow-2xs transition-all flex flex-col justify-between gap-3">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-mono-code text-[11px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-100">${pw.group}</span>
+                <span class="text-xs font-semibold text-sky-600 opacity-0 group-hover:opacity-100 transition-opacity">Apri 3D →</span>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm group-hover:text-sky-700 transition-colors">${pw.title}</h3>
+              <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${pw.shortDesc}</p>
+            </div>
+          </button>
+        `).join('');
+      }
+    }
+
+    function setSidebarCollapsed(collapsed) {
+      const sidebar = document.getElementById('left-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      const floatingBtn = document.getElementById('floating-menu-btn');
+      if (!sidebar) return;
+
+      if (collapsed) {
+        sidebar.classList.add('-translate-x-full', 'md:hidden');
+        sidebar.classList.remove('md:translate-x-0');
+        if (backdrop) backdrop.classList.add('hidden');
+        if (floatingBtn) {
+          if (currentView !== '3d') {
+            floatingBtn.classList.remove('hidden');
+            floatingBtn.classList.add('hidden', 'md:inline-flex');
+          } else {
+            floatingBtn.classList.add('hidden');
+            floatingBtn.classList.remove('md:inline-flex');
+          }
+        }
+      } else {
+        sidebar.classList.remove('-translate-x-full', 'md:hidden');
+        sidebar.classList.add('md:translate-x-0');
+        if (floatingBtn) {
+          floatingBtn.classList.add('hidden');
+          floatingBtn.classList.remove('md:inline-flex');
+        }
+        if (backdrop && (window.innerWidth < 768 || currentView === '3d')) {
+          backdrop.classList.remove('hidden');
+        }
+      }
+
+      if (currentView === '3d') {
+        setTimeout(onResizeMain3D, 220);
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('left-sidebar');
+      if (!sidebar) return;
+      const isClosed = sidebar.classList.contains('-translate-x-full') || sidebar.classList.contains('md:hidden');
+      setSidebarCollapsed(!isClosed);
+    }
+
+    function toggleDopamineMenu() {
+      const list = document.getElementById('dopamine-pathway-list');
+      const chevron = document.getElementById('dopamine-chevron');
+      list.classList.toggle('hidden');
+      chevron.classList.toggle('rotate-180');
+    }
+
+    function toggleHomeQuickAccess() {
+      const wrapper = document.getElementById('home-quick-cards-wrapper');
+      const chevron = document.getElementById('home-quick-chevron');
+      if (wrapper) wrapper.classList.toggle('hidden');
+      if (chevron) chevron.classList.toggle('rotate-180');
+    }
+
+    function selectPathway(pathwayId) {
+      currentPathwayId = pathwayId;
+      lastVisitedPathwayId = pathwayId;
+      updatePathwayUI(pathwayId);
+      highlightPathwayIn3D(pathwayId);
+      navigateTo('3d');
+      setSidebarCollapsed(true);
+    }
+
+    function stepPathway(delta) {
+      const idx = PATHWAYS_DATA.findIndex(p => p.id === currentPathwayId);
+      if (idx === -1) return;
+      const nextIdx = (idx + delta + PATHWAYS_DATA.length) % PATHWAYS_DATA.length;
+      selectPathway(PATHWAYS_DATA[nextIdx].id);
+    }
+
+    function updatePathwayUI(pathwayId) {
+      const idx = PATHWAYS_DATA.findIndex(p => p.id === pathwayId);
+      const pw = PATHWAYS_DATA[idx];
+      if (!pw) return;
+
+      document.getElementById('viewport-pathway-title').textContent = pw.title;
+      document.getElementById('panel-group-badge').textContent = pw.group;
+      document.getElementById('panel-title').textContent = pw.title;
+      document.getElementById('pathway-counter').textContent = `${idx + 1} / ${PATHWAYS_DATA.length}`;
+
+      document.getElementById('panel-origins').innerHTML = pw.origins.map(id => {
+        const st = ATLAS_DATA[id];
+        return `<button onclick="openAtlasForStructure('${id}')" class="px-2.5 py-1 rounded-lg bg-amber-100/80 hover:bg-amber-200 text-amber-900 border border-amber-300 text-xs font-semibold transition-colors">${st ? st.shortName : id}</button>`;
+      }).join('');
+
+      document.getElementById('panel-targets').innerHTML = pw.targets.map(id => {
+        const st = ATLAS_DATA[id];
+        return `<button onclick="openAtlasForStructure('${id}')" class="px-2.5 py-1 rounded-lg bg-sky-100/80 hover:bg-sky-200 text-sky-900 border border-sky-300 text-xs font-semibold transition-colors">${st ? st.shortName : id}</button>`;
+      }).join('');
+
+      document.getElementById('panel-function').innerHTML = pw.functionText
+        .map(p => `<p>${p}</p>`)
+        .join('');
+
+      document.getElementById('panel-examples').innerHTML = pw.examples
+        .map(ex => `<p class="bg-white/80 rounded-xl p-3 border border-amber-200/70 text-xs sm:text-sm">${ex}</p>`)
+        .join('');
+    }
+
+    function openAtlasForStructure(structureId) {
+      lastVisitedPathwayId = currentPathwayId;
+      navigateTo('atlas', structureId);
+    }
+
+    function returnTo3DPathway() {
+      if (lastVisitedPathwayId) {
+        selectPathway(lastVisitedPathwayId);
+      } else {
+        navigateTo('3d');
+      }
+    }
+
+    /**
+     * 5. NAVIGATION & VIEW ROUTER
+     */
+    function navigateTo(view, targetAtlasId = null) {
+      currentView = view;
+
+      setSidebarCollapsed(view === '3d' || window.innerWidth < 768);
+
+      ['home', 'manifesto', '3d', 'atlas'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) el.classList.toggle('hidden', v !== view);
+      });
+
+      ['nav-home', 'nav-manifesto', 'nav-atlas'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.remove('bg-slate-900', 'text-white');
+          el.classList.add('text-slate-700', 'hover:bg-slate-100');
+        }
+      });
+
+      document.querySelectorAll('.pw-nav-btn').forEach(btn => {
+        btn.classList.remove('bg-sky-600', 'text-white', 'font-semibold', 'shadow-xs');
+        btn.classList.add('text-slate-600', 'hover:bg-slate-100');
+      });
+
+      if (view === 'home') {
+        const btn = document.getElementById('nav-home');
+        if (btn) {
+          btn.classList.add('bg-slate-900', 'text-white');
+          btn.classList.remove('text-slate-700', 'hover:bg-slate-100');
+        }
+        onResizeHomePreview();
+      } else if (view === 'manifesto') {
+        const btn = document.getElementById('nav-manifesto');
+        if (btn) {
+          btn.classList.add('bg-slate-900', 'text-white');
+          btn.classList.remove('text-slate-700', 'hover:bg-slate-100');
+        }
+      } else if (view === '3d') {
+        const activeBtn = document.getElementById(`nav-pw-${currentPathwayId}`);
+        if (activeBtn) {
+          activeBtn.classList.add('bg-sky-600', 'text-white', 'font-semibold', 'shadow-xs');
+          activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+        }
+        onResizeMain3D();
+      } else if (view === 'atlas') {
+        const btn = document.getElementById('nav-atlas');
+        if (btn) {
+          btn.classList.add('bg-slate-900', 'text-white');
+          btn.classList.remove('text-slate-700', 'hover:bg-slate-100');
+        }
+
+        const banner = document.getElementById('atlas-return-banner');
+        if (lastVisitedPathwayId) {
+          const pw = PATHWAYS_DATA.find(p => p.id === lastVisitedPathwayId);
+          document.getElementById('atlas-return-pathway-name').textContent = pw ? pw.title : '';
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+
+        if (targetAtlasId) {
+          setAtlasRegion('all');
+          const searchInput = document.getElementById('atlas-search');
+          if (searchInput) searchInput.value = '';
+          currentAtlasSearch = '';
+          renderAtlasCards();
+
+          setTimeout(() => {
+            const card = document.getElementById(`atlas-card-${targetAtlasId}`);
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              card.classList.remove('atlas-highlight');
+              void card.offsetWidth;
+              card.classList.add('atlas-highlight');
+            }
+          }, 90);
+        }
+      }
+    }
+
+    /**
+     * 6. ENCYCLOPEDIC ATLAS RENDERING & FILTERING
+     */
+    function setAtlasRegion(region) {
+      currentAtlasRegion = region;
+      document.querySelectorAll('.atlas-reg-btn').forEach(btn => {
+        btn.classList.remove('bg-slate-900', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      });
+      const activeBtn = document.getElementById(`reg-${region}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-slate-900', 'text-white');
+        activeBtn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+      }
+      renderAtlasCards();
+    }
+
+    function filterAtlas(query) {
+      currentAtlasSearch = query.trim().toLowerCase();
+      renderAtlasCards();
+    }
+
+    function renderAtlasCards() {
+      const grid = document.getElementById('atlas-grid');
+      if (!grid) return;
+
+      const entries = Object.values(ATLAS_DATA)
+        .sort((a, b) => a.name.localeCompare(b.name, 'it'))
+        .filter(item => {
+          const matchesRegion = currentAtlasRegion === 'all' || item.region === currentAtlasRegion;
+          const matchesQuery = !currentAtlasSearch ||
+            item.name.toLowerCase().includes(currentAtlasSearch) ||
+            item.shortName.toLowerCase().includes(currentAtlasSearch) ||
+            item.region.toLowerCase().includes(currentAtlasSearch) ||
+            item.where.toLowerCase().includes(currentAtlasSearch) ||
+            item.what.toLowerCase().includes(currentAtlasSearch);
+          return matchesRegion && matchesQuery;
+        });
+
+      if (entries.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500 text-sm">
+            Nessuna struttura trovata per la ricerca corrente.
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = entries.map(item => `
+        <article id="atlas-card-${item.id}" class="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between gap-4">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="font-bold text-slate-900 text-base leading-snug">${item.name}</h3>
+              <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+                ${item.region}
+              </span>
+            </div>
+
+            <div class="space-y-2 text-sm">
+              <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Dove si trova</span>
+                <p class="text-slate-700 leading-relaxed">${item.where}</p>
+              </div>
+              <div class="bg-slate-50/60 rounded-xl p-3 border border-slate-100">
+                <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Cosa fa in breve</span>
+                <p class="text-slate-700 leading-relaxed">${item.what}</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    /**
+     * 7. PROCEDURAL 3D ANATOMICAL BRAIN SHELL BUILDER
+     */
+    function buildTranslucentBrainGroup(opacityValue = 0.16, isHomePreview = false) {
+      const group = new THREE.Group();
+
+      const cortexMat = new THREE.MeshPhysicalMaterial({
+        color: isHomePreview ? 0x38bdf8 : 0x94a3b8,
+        transparent: true,
+        opacity: opacityValue,
+        roughness: 0.45,
+        metalness: 0.05,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      const deepShellMat = new THREE.MeshPhysicalMaterial({
+        color: isHomePreview ? 0x0ea5e9 : 0x64748b,
+        transparent: true,
+        opacity: Math.min(opacityValue * 1.35, 0.48),
+        roughness: 0.5,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      if (!isHomePreview) {
+        brainShellMaterials.push(cortexMat, deepShellMat);
+      }
+
+      // Cerebral Hemispheres (Left & Right) with organic lobe sculpting
+      [-1, 1].forEach(side => {
+        const hemiGeo = new THREE.SphereGeometry(1.0, 44, 34);
+        const pos = hemiGeo.attributes.position;
+        const v = new THREE.Vector3();
+
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i);
+          if (side * v.x < 0) {
+            v.x *= 0.14;
+          } else {
+            v.x *= 0.84;
+          }
+          v.z *= 1.48;
+          if (v.y < 0) {
+            v.y *= 0.62;
+          } else {
+            v.y *= 0.96;
+          }
+          if (v.z > 0.5) {
+            v.x *= 0.92;
+            v.y *= 0.94;
+          }
+          if (v.y < -0.1 && v.z > -0.35 && v.z < 0.55) {
+            v.x += side * 0.08;
+            v.y -= 0.08;
+          }
+          const gyri = 1 + 0.018 * Math.sin(v.x * 11) * Math.cos(v.z * 11) * Math.sin(v.y * 11);
+          v.multiplyScalar(gyri);
+          pos.setXYZ(i, v.x, v.y, v.z);
+        }
+        hemiGeo.computeVertexNormals();
+
+        const hemiMesh = new THREE.Mesh(hemiGeo, cortexMat);
+        hemiMesh.position.set(side * 0.07, 0.24, 0.05);
+        group.add(hemiMesh);
+
+        if (isHomePreview) {
+          const wire = new THREE.LineSegments(
+            new THREE.EdgesGeometry(hemiGeo, 24),
+            new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.14 })
+          );
+          wire.position.copy(hemiMesh.position);
+          group.add(wire);
+        }
+      });
+
+      // Corpus Callosum
+      const ccCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.04, 0.56),
+        new THREE.Vector3(0, 0.28, 0.34),
+        new THREE.Vector3(0, 0.34, -0.05),
+        new THREE.Vector3(0, 0.25, -0.44),
+        new THREE.Vector3(0, 0.10, -0.54)
+      ]);
+      const ccGeo = new THREE.TubeGeometry(ccCurve, 28, 0.085, 12, false);
+      ccGeo.scale(1.65, 0.72, 1);
+      group.add(new THREE.Mesh(ccGeo, deepShellMat));
+
+      // Thalamus
+      [-1, 1].forEach(side => {
+        const thalGeo = new THREE.SphereGeometry(0.18, 20, 16);
+        thalGeo.scale(0.85, 0.85, 1.45);
+        const thalMesh = new THREE.Mesh(thalGeo, deepShellMat);
+        thalMesh.position.set(side * 0.16, 0.03, -0.04);
+        group.add(thalMesh);
+      });
+
+      // Cerebellum
+      [-1, 1].forEach(side => {
+        const cerGeo = new THREE.SphereGeometry(0.42, 24, 18);
+        cerGeo.scale(1.05, 0.72, 0.85);
+        const cerMesh = new THREE.Mesh(cerGeo, deepShellMat);
+        cerMesh.position.set(side * 0.34, -0.48, -0.78);
+        group.add(cerMesh);
+      });
+
+      // Brainstem & Upper Spinal Cord
+      const stemCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, -0.18, -0.08),
+        new THREE.Vector3(0, -0.46, -0.18),
+        new THREE.Vector3(0, -0.78, -0.28),
+        new THREE.Vector3(0, -1.18, -0.37),
+        new THREE.Vector3(0, -1.68, -0.46)
+      ]);
+      const stemGeo = new THREE.TubeGeometry(stemCurve, 28, 0.145, 16, false);
+      group.add(new THREE.Mesh(stemGeo, deepShellMat));
+
+      const ponsGeo = new THREE.SphereGeometry(0.21, 20, 16);
+      ponsGeo.scale(1.15, 1.05, 1.1);
+      const ponsMesh = new THREE.Mesh(ponsGeo, deepShellMat);
+      ponsMesh.position.set(0, -0.56, -0.12);
+      group.add(ponsMesh);
+
+      return group;
+    }
+
+    /**
+     * 8. HOME PAGE 3D ROTATING PREVIEW WIDGET
+     */
+    function initHomePreview3D() {
+      const container = document.getElementById('home-preview-container');
+      if (!container || typeof THREE === 'undefined') return;
+
+      homeScene = new THREE.Scene();
+      const width = container.clientWidth || 380;
+      const height = container.clientHeight || 300;
+
+      homeCamera = new THREE.PerspectiveCamera(42, width / height, 0.1, 50);
+      homeCamera.position.set(2.9, 1.1, 2.9);
+      homeCamera.lookAt(0, -0.1, 0.05);
+
+      homeRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      homeRenderer.setSize(width, height);
+      homeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(homeRenderer.domElement);
+
+      const ambLight = new THREE.AmbientLight(0xffffff, 0.85);
+      homeScene.add(ambLight);
+
+      const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+      dirLight.position.set(3, 5, 4);
+      homeScene.add(dirLight);
+
+      homeBrainGroup = buildTranslucentBrainGroup(0.18, true);
+
+      const nodeMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24 });
+      const targetMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      const samplePts = [
+        { p: [0.20, -0.44, -0.14], m: nodeMat },
+        { p: [-0.20, -0.44, -0.14], m: nodeMat },
+        { p: [0.44, 0.22, 0.34], m: targetMat },
+        { p: [-0.44, 0.22, 0.34], m: targetMat },
+        { p: [0.32, 0.42, 1.32], m: targetMat },
+        { p: [-0.32, 0.42, 1.32], m: targetMat }
+      ];
+      samplePts.forEach(item => {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.065, 14, 14), item.m);
+        s.position.set(...item.p);
+        homeBrainGroup.add(s);
+      });
+
+      [-1, 1].forEach(side => {
+        const c1 = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(side * 0.20, -0.44, -0.14),
+          new THREE.Vector3(side * 0.32, -0.10, 0.12),
+          new THREE.Vector3(side * 0.44, 0.22, 0.34)
+        ]);
+        const c2 = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(side * 0.10, -0.43, -0.12),
+          new THREE.Vector3(side * 0.22, 0.08, 0.62),
+          new THREE.Vector3(side * 0.32, 0.42, 1.32)
+        ]);
+        const tMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75 });
+        homeBrainGroup.add(new THREE.Mesh(new THREE.TubeGeometry(c1, 20, 0.015, 8, false), tMat));
+        homeBrainGroup.add(new THREE.Mesh(new THREE.TubeGeometry(c2, 24, 0.015, 8, false), tMat));
+      });
+
+      homeScene.add(homeBrainGroup);
+    }
+
+    function onResizeHomePreview() {
+      const container = document.getElementById('home-preview-container');
+      if (!container || !homeRenderer || !homeCamera) return;
+      const w = container.clientWidth || 380;
+      const h = container.clientHeight || 300;
+      homeCamera.aspect = w / h;
+      homeCamera.updateProjectionMatrix();
+      homeRenderer.setSize(w, h);
+    }
+
+    /**
+     * 9. REFINED ANATOMICAL GEOMETRY FACTORY FOR NUCLEI
+     */
+    function createAnatomicalStructureMesh(st, material) {
+      const group = new THREE.Group();
+      const sides = st.bilateral ? [-1, 1] : [1];
+
+      sides.forEach(side => {
+        const s = st.bilateral ? side : 0;
+
+        if (st.shapeType === 'dorsal_striatum') {
+          const caudateCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(s * 0.28, 0.14, 0.56),
+            new THREE.Vector3(s * 0.34, 0.32, 0.32),
+            new THREE.Vector3(s * 0.36, 0.33, -0.06),
+            new THREE.Vector3(s * 0.38, 0.16, -0.34),
+            new THREE.Vector3(s * 0.42, -0.12, -0.22),
+            new THREE.Vector3(s * 0.44, -0.22, 0.10)
+          ]);
+          const caudateGeo = new THREE.TubeGeometry(caudateCurve, 32, 0.046, 12, false);
+          group.add(new THREE.Mesh(caudateGeo, material));
+
+          const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 14), material);
+          headMesh.position.set(s * 0.28, 0.14, 0.56);
+          group.add(headMesh);
+
+          const putamenGeo = new THREE.SphereGeometry(0.13, 20, 16);
+          putamenGeo.scale(0.55, 0.95, 1.55);
+          const putamenMesh = new THREE.Mesh(putamenGeo, material);
+          putamenMesh.position.set(s * 0.48, 0.12, 0.22);
+          group.add(putamenMesh);
+
+        } else if (st.shapeType === 'hippocampus') {
+          const hippoCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(s * 0.46, -0.24, 0.14),
+            new THREE.Vector3(s * 0.48, -0.18, -0.06),
+            new THREE.Vector3(s * 0.42, -0.04, -0.26),
+            new THREE.Vector3(s * 0.30, 0.12, -0.34)
+          ]);
+          const hippoGeo = new THREE.TubeGeometry(hippoCurve, 24, 0.052, 12, false);
+          group.add(new THREE.Mesh(hippoGeo, material));
+
+        } else if (st.shapeType === 'amygdala') {
+          const amygGeo = new THREE.SphereGeometry(0.072, 16, 14);
+          amygGeo.scale(0.85, 0.9, 1.25);
+          const amygMesh = new THREE.Mesh(amygGeo, material);
+          amygMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(amygMesh);
+
+        } else if (st.shapeType === 'substantia_nigra') {
+          const snGeo = new THREE.SphereGeometry(0.078, 16, 14);
+          snGeo.scale(1.15, 0.42, 0.85);
+          const snMesh = new THREE.Mesh(snGeo, material);
+          snMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          snMesh.rotation.z = s * -0.35;
+          group.add(snMesh);
+
+        } else if (st.shapeType === 'zona_incerta') {
+          const ziGeo = new THREE.SphereGeometry(0.068, 16, 12);
+          ziGeo.scale(1.2, 0.36, 0.95);
+          const ziMesh = new THREE.Mesh(ziGeo, material);
+          ziMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(ziMesh);
+
+        } else if (st.shapeType === 'accumbens') {
+          const accGeo = new THREE.SphereGeometry(0.072, 16, 14);
+          accGeo.scale(1.1, 0.85, 1.1);
+          const accMesh = new THREE.Mesh(accGeo, material);
+          accMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(accMesh);
+
+        } else if (st.shapeType === 'prefrontal_cortex') {
+          const pfcGeo = new THREE.SphereGeometry(0.15, 20, 16);
+          pfcGeo.scale(0.85, 1.15, 0.55);
+          const pfcMesh = new THREE.Mesh(pfcGeo, material);
+          pfcMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(pfcMesh);
+
+        } else if (st.shapeType === 'habenula') {
+          const habGeo = new THREE.SphereGeometry(0.048, 14, 12);
+          habGeo.scale(0.8, 0.85, 1.25);
+          const habMesh = new THREE.Mesh(habGeo, material);
+          habMesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(habMesh);
+
+        } else if (st.shapeType === 'pituitary') {
+          const stalkCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, -0.34, 0.30),
+            new THREE.Vector3(0, -0.54, 0.34)
+          ]);
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(stalkCurve, 8, 0.022, 8, false), material));
+
+          const adeno = new THREE.Mesh(new THREE.SphereGeometry(0.072, 16, 14), material);
+          adeno.scale.set(1.15, 0.78, 0.85);
+          adeno.position.set(0, -0.58, 0.37);
+          group.add(adeno);
+
+          const neuro = new THREE.Mesh(new THREE.SphereGeometry(0.056, 14, 12), material);
+          neuro.scale.set(0.95, 0.75, 0.75);
+          neuro.position.set(0, -0.58, 0.30);
+          group.add(neuro);
+
+        } else if (st.shapeType === 'limbic_accessory') {
+          const basal = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 12), material);
+          basal.position.set(s * 0.20, -0.16, 0.50);
+          group.add(basal);
+
+          const ento = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 12), material);
+          ento.position.set(s * 0.36, -0.28, 0.14);
+          group.add(ento);
+
+        } else if (st.shapeType === 'pag') {
+          const pagCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, -0.26, -0.20),
+            new THREE.Vector3(0, -0.48, -0.28)
+          ]);
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(pagCurve, 12, 0.048, 12, false), material));
+
+        } else if (st.shapeType === 'spinal_cord') {
+          const cordCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(0, -0.95, -0.32),
+            new THREE.Vector3(0, -1.68, -0.46)
+          ]);
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(cordCurve, 16, 0.068, 14, false), material));
+
+        } else {
+          const r = st.radius || 0.062;
+          const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 14), material);
+          mesh.position.set(s * st.pos[0], st.pos[1], st.pos[2]);
+          group.add(mesh);
+        }
+      });
+
+      return group;
+    }
+
+    /**
+     * 10. MAIN INTERACTIVE 3D VIEWPORT ENGINE
+     */
+    function initMainInteractive3D() {
+      const container = document.getElementById('threejs-container');
+      const labelsOverlay = document.getElementById('labels-overlay');
+      if (!container || typeof THREE === 'undefined') return;
+
+      mainScene = new THREE.Scene();
+      mainScene.background = new THREE.Color(0x020617);
+
+      const width = container.clientWidth || window.innerWidth;
+      const height = container.clientHeight || window.innerHeight;
+
+      mainCamera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+      mainCamera.position.set(3.4, 1.0, 3.2);
+
+      mainRenderer = new THREE.WebGLRenderer({ antialias: true });
+      mainRenderer.setSize(width, height);
+      mainRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container.appendChild(mainRenderer.domElement);
+
+      mainControls = new THREE.OrbitControls(mainCamera, mainRenderer.domElement);
+      mainControls.enableDamping = true;
+      mainControls.dampingFactor = 0.06;
+      mainControls.minDistance = 1.6;
+      mainControls.maxDistance = 8.5;
+      mainControls.target.set(0, -0.15, 0.1);
+
+      mainScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      keyLight.position.set(4, 6, 5);
+      mainScene.add(keyLight);
+      const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.5);
+      rimLight.position.set(-4, -3, -4);
+      mainScene.add(rimLight);
+
+      const brainGroup = buildTranslucentBrainGroup(0.16, false);
+      mainScene.add(brainGroup);
+
+      Object.values(ATLAS_DATA).forEach(st => {
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x475569,
+          emissive: 0x000000,
+          emissiveIntensity: 0,
+          roughness: 0.35,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.16
+        });
+
+        const group = createAnatomicalStructureMesh(st, mat);
+        group.userData = { structureId: st.id, material: mat, activeRole: null };
+
+        group.traverse(child => {
+          if (child.isMesh) {
+            child.userData.structureId = st.id;
+          }
+        });
+
+        mainScene.add(group);
+        structureMeshes[st.id] = group;
+
+        const lbl = document.createElement('div');
+        lbl.className = 'hidden absolute -translate-x-1/2 -translate-y-full px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-tight whitespace-nowrap shadow-md backdrop-blur-xs transition-opacity duration-150';
+        lbl.textContent = st.shortName;
+        labelsOverlay.appendChild(lbl);
+        labelElements[st.id] = lbl;
+      });
+
+      activeTractsGroup = new THREE.Group();
+      mainScene.add(activeTractsGroup);
+
+      raycaster = new THREE.Raycaster();
+      mouseNDC = new THREE.Vector2();
+
+      const domElem = mainRenderer.domElement;
+      domElem.addEventListener('pointerdown', onPointerDown3D);
+      domElem.addEventListener('pointermove', onPointerMove3D);
+      domElem.addEventListener('pointerup', onPointerUp3D);
+
+      window.addEventListener('resize', () => {
+        onResizeMain3D();
+        onResizeHomePreview();
+      });
+
+      updatePathwayUI(currentPathwayId);
+      highlightPathwayIn3D(currentPathwayId);
+    }
+
+    function onResizeMain3D() {
+      const container = document.getElementById('threejs-container');
+      if (!container || !mainRenderer || !mainCamera) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return;
+      mainCamera.aspect = w / h;
+      mainCamera.updateProjectionMatrix();
+      mainRenderer.setSize(w, h);
+    }
+
+    function resetCameraView() {
+      if (!mainCamera || !mainControls) return;
+      mainCamera.position.set(3.4, 1.0, 3.2);
+      mainControls.target.set(0, -0.15, 0.1);
+      mainControls.update();
+    }
+
+    function updateBrainOpacity(val) {
+      const op = parseFloat(val);
+      brainShellMaterials.forEach((mat, idx) => {
+        mat.opacity = idx % 2 === 0 ? op : Math.min(op * 1.35, 0.5);
+      });
+    }
+
+    function toggle3DLabels(checked) {
+      showLabels = checked;
+      if (!checked) {
+        Object.values(labelElements).forEach(el => el.classList.add('hidden'));
+      }
+    }
+
+    /**
+     * 11. SELECTIVE PATHWAY HIGHLIGHTING & AXONAL TRACT ANIMATION
+     */
+    function highlightPathwayIn3D(pathwayId) {
+      const pw = PATHWAYS_DATA.find(p => p.id === pathwayId);
+      if (!pw || !mainScene) return;
+
+      clickableMeshes = [];
+      animatedPulses = [];
+
+      while (activeTractsGroup.children.length > 0) {
+        activeTractsGroup.remove(activeTractsGroup.children[0]);
+      }
+
+      const originSet = new Set(pw.origins);
+      const targetSet = new Set(pw.targets);
+
+      Object.values(ATLAS_DATA).forEach(st => {
+        const group = structureMeshes[st.id];
+        if (!group) return;
+        const mat = group.userData.material;
+        const lbl = labelElements[st.id];
+
+        const isOrigin = originSet.has(st.id);
+        const isTarget = targetSet.has(st.id);
+
+        if (isOrigin) {
+          mat.color.setHex(0xf59e0b);
+          mat.emissive.setHex(0xd97706);
+          mat.emissiveIntensity = 0.75;
+          mat.opacity = 0.96;
+          group.userData.activeRole = 'origin';
+          group.traverse(c => { if (c.isMesh) clickableMeshes.push(c); });
+
+          if (lbl) {
+            lbl.className = 'absolute -translate-x-1/2 -translate-y-full px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap shadow-md bg-amber-500/95 text-slate-950 border border-amber-300';
+          }
+        } else if (isTarget) {
+          mat.color.setHex(0x38bdf8);
+          mat.emissive.setHex(0x0284c7);
+          mat.emissiveIntensity = 0.75;
+          mat.opacity = 0.94;
+          group.userData.activeRole = 'target';
+          group.traverse(c => { if (c.isMesh) clickableMeshes.push(c); });
+
+          if (lbl) {
+            lbl.className = 'absolute -translate-x-1/2 -translate-y-full px-2 py-0.5 rounded-md text-[11px] font-bold whitespace-nowrap shadow-md bg-sky-500/95 text-slate-950 border border-sky-200';
+          }
+        } else {
+          mat.color.setHex(0x475569);
+          mat.emissive.setHex(0x000000);
+          mat.emissiveIntensity = 0;
+          mat.opacity = 0.10;
+          group.userData.activeRole = null;
+          if (lbl) lbl.classList.add('hidden');
+        }
+      });
+
+      const tractMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.62
+      });
+      const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+      pw.origins.forEach(origId => {
+        const orig = ATLAS_DATA[origId];
+        if (!orig) return;
+
+        pw.targets.forEach(targId => {
+          const targ = ATLAS_DATA[targId];
+          if (!targ || origId === targId) return;
+
+          const sides = (orig.bilateral || targ.bilateral) ? [-1, 1] : [1];
+          sides.forEach(side => {
+            const ox = orig.bilateral ? side * orig.pos[0] : orig.pos[0];
+            const tx = targ.bilateral ? side * targ.pos[0] : targ.pos[0];
+
+            const start = new THREE.Vector3(ox, orig.pos[1], orig.pos[2]);
+            const end = new THREE.Vector3(tx, targ.pos[1], targ.pos[2]);
+
+            const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+            mid.y += 0.14;
+            mid.x += side * 0.04;
+
+            const curve = new THREE.CatmullRomCurve3([start, mid, end]);
+            const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.013, 8, false);
+            activeTractsGroup.add(new THREE.Mesh(tubeGeo, tractMat));
+
+            [0, 0.5].forEach(offset => {
+              const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 10), pulseMat);
+              activeTractsGroup.add(pulse);
+              animatedPulses.push({ curve, mesh: pulse, t: offset });
+            });
+          });
+        });
+      });
+
+      if (pw.localLoop) {
+        [-1, 1].forEach(side => {
+          const loopCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(side * 0.22, -0.44, -0.14),
+            new THREE.Vector3(side * 0.28, -0.53, -0.18),
+            new THREE.Vector3(side * 0.18, -0.53, -0.11),
+            new THREE.Vector3(side * 0.22, -0.44, -0.14)
+          ]);
+          const loopMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.8 });
+          activeTractsGroup.add(new THREE.Mesh(new THREE.TubeGeometry(loopCurve, 24, 0.01, 8, true), loopMat));
+        });
+      }
+    }
+
+    /**
+     * 12. RAYCASTING INTERACTION (ONLY ACTIVE NUCLEI ARE CLICKABLE)
+     */
+    function updateMouseNDC(event) {
+      const rect = mainRenderer.domElement.getBoundingClientRect();
+      mouseNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    }
+
+    function onPointerDown3D(event) {
+      pointerDownPos = { x: event.clientX, y: event.clientY };
+    }
+
+    function onPointerMove3D(event) {
+      if (currentView !== '3d' || !raycaster || clickableMeshes.length === 0) return;
+      updateMouseNDC(event);
+      raycaster.setFromCamera(mouseNDC, mainCamera);
+
+      const intersects = raycaster.intersectObjects(clickableMeshes, false);
+      const tooltip = document.getElementById('node-tooltip');
+      const domElem = mainRenderer.domElement;
+
+      if (intersects.length > 0) {
+        const stId = intersects[0].object.userData.structureId;
+        const st = ATLAS_DATA[stId];
+        hoveredStructureId = stId;
+        domElem.style.cursor = 'pointer';
+
+        if (st && tooltip) {
+          document.getElementById('tooltip-title').textContent = st.shortName;
+          tooltip.style.left = `${event.clientX + 14}px`;
+          tooltip.style.top = `${event.clientY + 14}px`;
+          tooltip.classList.remove('hidden');
+        }
+      } else {
+        hoveredStructureId = null;
+        domElem.style.cursor = 'grab';
+        if (tooltip) tooltip.classList.add('hidden');
+      }
+    }
+
+    function onPointerUp3D(event) {
+      const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+      if (dist < 6 && hoveredStructureId) {
+        const tooltip = document.getElementById('node-tooltip');
+        if (tooltip) tooltip.classList.add('hidden');
+        openAtlasForStructure(hoveredStructureId);
+      }
+    }
+
+    /**
+     * 13. ANIMATION & 2D LABEL PROJECTION LOOP
+     */
+    function update2DLabels() {
+      if (currentView !== '3d' || !showLabels || !mainCamera || !mainRenderer) return;
+      const canvas = mainRenderer.domElement;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const tempVec = new THREE.Vector3();
+
+      Object.values(ATLAS_DATA).forEach(st => {
+        const group = structureMeshes[st.id];
+        const lbl = labelElements[st.id];
+        if (!group || !lbl) return;
+
+        if (!group.userData.activeRole) {
+          lbl.classList.add('hidden');
+          return;
+        }
+
+        tempVec.set(st.pos[0], st.pos[1] + (st.labelOffsetY || 0.14), st.pos[2]);
+        tempVec.project(mainCamera);
+
+        if (tempVec.z > 1) {
+          lbl.classList.add('hidden');
+          return;
+        }
+
+        const x = (tempVec.x * 0.5 + 0.5) * w;
+        const y = (-tempVec.y * 0.5 + 0.5) * h;
+
+        lbl.style.left = `${x}px`;
+        lbl.style.top = `${y}px`;
+        lbl.classList.remove('hidden');
+      });
+    }
+
+    function animateLoops() {
+      requestAnimationFrame(animateLoops);
+
+      if (currentView === 'home' && homeRenderer && homeScene && homeCamera && homeBrainGroup) {
+        homeBrainGroup.rotation.y += 0.007;
+        homeRenderer.render(homeScene, homeCamera);
+      }
+
+      if (currentView === '3d' && mainRenderer && mainScene && mainCamera) {
+        if (mainControls) mainControls.update();
+
+        animatedPulses.forEach(p => {
+          p.t = (p.t + 0.0085) % 1;
+          const pt = p.curve.getPointAt(p.t);
+          p.mesh.position.copy(pt);
+        });
+
+        mainRenderer.render(mainScene, mainCamera);
+        update2DLabels();
+      }
+    }
+  </script>
+</body>
+</html>
