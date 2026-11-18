@@ -53,7 +53,7 @@
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden selection:bg-sky-500 selection:text-white">
 
   <!-- MOBILE TOP HEADER -->
-  <header class="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-30 shrink-0">
+  <header id="mobile-top-header" class="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-30 shrink-0">
     <button onclick="navigateTo('home')" class="flex items-center gap-2.5 text-left focus:outline-none">
       <svg class="w-8 h-8 shrink-0" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="40" height="40" rx="10" fill="#0F172A"/>
@@ -144,13 +144,13 @@
             <span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.7)]"></span>
             <span>Sistemi Dopaminergici</span>
           </span>
-          <svg id="dopamine-chevron" class="w-4 h-4 text-slate-500 transform rotate-180 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg id="dopamine-chevron" class="w-4 h-4 text-slate-500 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
           </svg>
         </button>
 
         <!-- Pathway Sub-items populated dynamically -->
-        <div id="dopamine-pathway-list" class="pl-3 pr-1 py-1 space-y-1 border-l-2 border-sky-100 ml-4"></div>
+        <div id="dopamine-pathway-list" class="hidden pl-3 pr-1 py-1 space-y-1 border-l-2 border-sky-100 ml-4"></div>
       </div>
 
       <!-- Future Modular Expandable Placeholder -->
@@ -1051,11 +1051,16 @@
       const sidebar = document.getElementById('left-sidebar');
       const backdrop = document.getElementById('sidebar-backdrop');
       const floatingBtn = document.getElementById('floating-menu-btn');
+      const mobileHeader = document.getElementById('mobile-top-header');
       if (!sidebar) return;
+
+      if (mobileHeader) {
+        mobileHeader.classList.remove('hidden');
+      }
 
       if (collapsed) {
         sidebar.classList.add('-translate-x-full', 'md:hidden');
-        sidebar.classList.remove('md:translate-x-0');
+        sidebar.classList.remove('translate-x-0', 'md:translate-x-0');
         if (backdrop) backdrop.classList.add('hidden');
         if (floatingBtn) {
           if (currentView !== '3d') {
@@ -1068,7 +1073,7 @@
         }
       } else {
         sidebar.classList.remove('-translate-x-full', 'md:hidden');
-        sidebar.classList.add('md:translate-x-0');
+        sidebar.classList.add('translate-x-0', 'md:translate-x-0');
         if (floatingBtn) {
           floatingBtn.classList.add('hidden');
           floatingBtn.classList.remove('md:inline-flex');
@@ -1168,12 +1173,12 @@
     function navigateTo(view, targetAtlasId = null) {
       currentView = view;
 
-      setSidebarCollapsed(view === '3d' || window.innerWidth < 768);
-
       ['home', 'manifesto', '3d', 'atlas'].forEach(v => {
         const el = document.getElementById(`view-${v}`);
         if (el) el.classList.toggle('hidden', v !== view);
       });
+
+      setSidebarCollapsed(view === '3d' || window.innerWidth < 768);
 
       ['nav-home', 'nav-manifesto', 'nav-atlas'].forEach(id => {
         const el = document.getElementById(id);
@@ -1207,7 +1212,7 @@
           activeBtn.classList.add('bg-sky-600', 'text-white', 'font-semibold', 'shadow-xs');
           activeBtn.classList.remove('text-slate-600', 'hover:bg-slate-100');
         }
-        onResizeMain3D();
+        setTimeout(onResizeMain3D, 60);
       } else if (view === 'atlas') {
         const btn = document.getElementById('nav-atlas');
         if (btn) {
