@@ -53,7 +53,7 @@
 <body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden selection:bg-sky-500 selection:text-white">
 
   <!-- MOBILE TOP HEADER -->
-  <header id="mobile-top-header" class="md:hidden sticky top-0 flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-40 shrink-0">
+  <header id="mobile-top-header" class="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-40 shrink-0">
     <button onclick="navigateTo('home')" class="flex items-center gap-2.5 text-left focus:outline-none">
       <svg class="w-8 h-8 shrink-0" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="40" height="40" rx="10" fill="#0F172A"/>
@@ -209,7 +209,7 @@
   </aside>
 
   <!-- MAIN CONTENT WORKSPACE -->
-  <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+  <main id="main-workspace" class="flex-1 flex flex-col h-full overflow-hidden relative">
 
     <!-- Persistent Floating Menu Toggle (visible on desktop when left sidebar is collapsed in Home, Manifesto or Atlas) -->
     <button id="floating-menu-btn" onclick="toggleSidebar()" title="Apri il menu laterale" class="hidden fixed top-4 left-4 z-30 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-slate-50 backdrop-blur-md border border-slate-200 text-slate-800 text-xs font-semibold shadow-md transition-all">
@@ -461,7 +461,7 @@
         <div id="threejs-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
 
         <!-- Top-Left Menu Toggle & Active Pathway Pill Overlay -->
-        <div class="absolute top-4 left-4 right-4 sm:right-auto flex flex-col gap-1.5 max-w-md z-10">
+        <div class="absolute top-2.5 md:top-4 left-3 md:left-4 right-3 sm:right-auto flex flex-col gap-1.5 max-w-md z-20">
           <div class="flex items-center gap-2">
             <button onclick="toggleSidebar()" class="pointer-events-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-slate-700/80 text-white text-xs font-semibold shadow-lg transition-colors" title="Apri o chiudi il menu delle vie">
               <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1153,9 +1153,16 @@
     function navigateTo(view, targetAtlasId = null) {
       currentView = view;
 
+      const mainWorkspace = document.getElementById('main-workspace');
+      if (mainWorkspace) mainWorkspace.scrollTop = 0;
+      window.scrollTo(0, 0);
+
       ['home', 'manifesto', '3d', 'atlas'].forEach(v => {
         const el = document.getElementById(`view-${v}`);
-        if (el) el.classList.toggle('hidden', v !== view);
+        if (el) {
+          el.classList.toggle('hidden', v !== view);
+          if (v === view) el.scrollTop = 0;
+        }
       });
 
       setSidebarCollapsed(view === '3d' || window.innerWidth < 768);
