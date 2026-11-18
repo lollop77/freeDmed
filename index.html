@@ -50,10 +50,10 @@
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 h-screen flex flex-col md:flex-row overflow-hidden selection:bg-sky-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 h-screen h-[100dvh] flex flex-col md:flex-row overflow-hidden selection:bg-sky-500 selection:text-white">
 
   <!-- MOBILE TOP HEADER -->
-  <header id="mobile-top-header" class="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-40 shrink-0">
+  <header id="mobile-top-header" class="md:hidden fixed top-0 inset-x-0 flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3 z-40">
     <button onclick="navigateTo('home')" class="flex items-center gap-2.5 text-left focus:outline-none">
       <svg class="w-8 h-8 shrink-0" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect width="40" height="40" rx="10" fill="#0F172A"/>
@@ -82,7 +82,7 @@
   <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-30 hidden"></div>
 
   <!-- LEFT NAVIGATION SIDEBAR -->
-  <aside id="left-sidebar" class="fixed md:static inset-y-0 left-0 w-72 bg-white border-r border-slate-200 flex flex-col z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out shrink-0 h-full">
+  <aside id="left-sidebar" class="fixed md:static inset-y-0 left-0 w-72 bg-white border-r border-slate-200 flex flex-col z-50 md:z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-200 ease-in-out shrink-0 h-full">
     <!-- Brand Logo Header -->
     <div class="p-5 border-b border-slate-100 flex items-center justify-between gap-2">
       <button onclick="navigateTo('home')" title="Torna alla Home" class="flex items-center gap-3 text-left group focus:outline-none">
@@ -209,7 +209,7 @@
   </aside>
 
   <!-- MAIN CONTENT WORKSPACE -->
-  <main id="main-workspace" class="flex-1 flex flex-col h-full overflow-hidden relative">
+  <main id="main-workspace" class="flex-1 flex flex-col h-full pt-[57px] md:pt-0 overflow-hidden relative">
 
     <!-- Persistent Floating Menu Toggle (visible on desktop when left sidebar is collapsed in Home, Manifesto or Atlas) -->
     <button id="floating-menu-btn" onclick="toggleSidebar()" title="Apri il menu laterale" class="hidden fixed top-4 left-4 z-30 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/95 hover:bg-slate-50 backdrop-blur-md border border-slate-200 text-slate-800 text-xs font-semibold shadow-md transition-all">
